@@ -1,0 +1,1 @@
+.button{width:58px;height:58px;border:5px solid #f7f9fc;border-radius:50%;background:linear-gradient(145deg,#1672ff,#064dbb);color:#fff;display:grid;place-items:center;position:fixed;left:50%;bottom:49px;transform:translateX(-50%);z-index:50;box-shadow:0 12px 25px rgba(13,91,215,.35)}@media(min-width:700px){.button{bottom:73px}}

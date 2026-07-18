@@ -1,0 +1,125 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(7, 15, 29, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+.menuCard {
+  width: min(100%, 390px);
+  position: relative;
+  z-index: 1;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(10, 23, 44, 0.28);
+  overflow: hidden;
+}
+
+.header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5eaf0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header div {
+  display: grid;
+  gap: 3px;
+}
+
+.header strong {
+  color: #111827;
+  font-size: 18px;
+}
+
+.header span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.header button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 12px;
+  background: #f3f5f8;
+  color: #344054;
+  display: grid;
+  place-items: center;
+}
+
+.list {
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.option {
+  width: 100%;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 13px;
+  text-align: left;
+}
+
+.option:hover {
+  background: #f7f9fc;
+}
+
+.optionIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.tone1 { background: #f2ece8; color: #8c5a42; }
+.tone2 { background: #fff2d8; color: #d97706; }
+.tone3 { background: #eaf2ff; color: #0d5bd7; }
+.tone4 { background: #efe8ff; color: #6d3dc5; }
+
+.optionText {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.optionText strong {
+  color: #1d2939;
+  font-size: 15px;
+}
+
+.optionText small {
+  color: #667085;
+  font-size: 12px;
+}
+
+.formContainer {
+  width: min(100%, 520px);
+  position: relative;
+  z-index: 1;
+  align-self: flex-end;
+}
+
+@media (max-width: 420px) {
+  .overlay { padding: 18px; }
+  .menuCard { border-radius: 22px; }
+}

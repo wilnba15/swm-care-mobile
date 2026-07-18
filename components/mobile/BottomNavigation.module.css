@@ -1,0 +1,71 @@
+.navigation {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 40;
+  width: min(100%, 520px);
+  transform: translateX(-50%);
+  min-height: 82px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: #0f1b2d;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -10px 30px rgba(15, 27, 45, 0.18);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.item {
+  text-decoration: none;
+  color: #9fb0c7;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 14px;
+  padding: 6px 4px;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.iconWrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.item:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.item:hover .iconWrap {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.active {
+  color: #ffffff;
+}
+
+.active .iconWrap {
+  background: #0d5bd7;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(13, 91, 215, 0.32);
+}
+
+@media (min-width: 700px) {
+  .navigation {
+    bottom: 24px;
+    border-radius: 0 0 28px 28px;
+  }
+}

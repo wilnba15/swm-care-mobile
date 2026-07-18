@@ -1,0 +1,26 @@
+.shell {
+  width: 100%;
+  min-height: 100dvh;
+  max-width: 520px;
+  margin: 0 auto;
+  background: #f7f9fc;
+  position: relative;
+  padding-bottom: 112px;
+  box-shadow: 0 0 60px rgba(18, 36, 66, 0.08);
+}
+
+.content {
+  padding: 22px 18px 12px;
+  display: grid;
+  gap: 17px;
+}
+
+@media (min-width: 700px) {
+  .shell {
+    min-height: calc(100dvh - 48px);
+    margin-top: 24px;
+    margin-bottom: 24px;
+    border-radius: 28px;
+    overflow: hidden;
+  }
+}

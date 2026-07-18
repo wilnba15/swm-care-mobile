@@ -1,0 +1,92 @@
+.card {
+  padding: 15px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5eaf0;
+  box-shadow: 0 8px 22px rgba(21, 42, 77, 0.05);
+  display: grid;
+  gap: 12px;
+  break-inside: avoid;
+}
+
+.top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 11px;
+}
+
+.icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #eaf2ff;
+  color: #0d5bd7;
+  display: grid;
+  place-items: center;
+}
+
+.titleBlock {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.titleBlock strong {
+  overflow: hidden;
+  color: #1d2939;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleBlock span {
+  color: #667085;
+  font-size: 11px;
+}
+
+.value {
+  font-size: 13px;
+}
+
+.meta {
+  padding-top: 10px;
+  border-top: 1px solid #edf0f4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: #667085;
+  font-size: 10px;
+}
+
+.meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nextService {
+  padding: 10px 11px;
+  border-radius: 13px;
+  background: #f6f8fb;
+  color: #0d5bd7;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.nextService div {
+  display: grid;
+  gap: 2px;
+}
+
+.nextService small {
+  color: #667085;
+  font-size: 9px;
+}
+
+.nextService span {
+  color: #1d2939;
+  font-size: 11px;
+  font-weight: 800;
+}

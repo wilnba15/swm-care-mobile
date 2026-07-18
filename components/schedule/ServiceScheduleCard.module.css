@@ -1,0 +1,131 @@
+.card {
+  padding: 16px;
+  border-radius: 19px;
+  background: #ffffff;
+  border: 1px solid #e5eaf0;
+  box-shadow: 0 10px 26px rgba(21, 42, 77, 0.06);
+  display: grid;
+  gap: 14px;
+}
+
+.top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 11px;
+}
+
+.serviceIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #eaf2ff;
+  color: #0d5bd7;
+  display: grid;
+  place-items: center;
+}
+
+.titleBlock {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.titleBlock strong {
+  overflow: hidden;
+  color: #1d2939;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleBlock span {
+  color: #667085;
+  font-size: 11px;
+}
+
+.statusBadge {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #e8f7ef;
+  color: #147a51;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.soon .statusBadge {
+  background: #fff3d9;
+  color: #a15c00;
+}
+
+.overdue .statusBadge {
+  background: #fff0f0;
+  color: #b42318;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+
+.detailBox {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 15px;
+  background: #f6f8fb;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 9px;
+}
+
+.detailIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0d5bd7;
+  display: grid;
+  place-items: center;
+}
+
+.detailBox div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.detailBox small {
+  color: #667085;
+  font-size: 10px;
+}
+
+.detailBox strong {
+  color: #1d2939;
+  font-size: 13px;
+}
+
+.detailBox span {
+  color: #667085;
+  font-size: 10px;
+}
+
+.soon {
+  border-color: #f1d99b;
+}
+
+.overdue {
+  border-color: #f2b8b5;
+}
+
+@media (max-width: 390px) {
+  .details {
+    grid-template-columns: 1fr;
+  }
+
+  .statusBadge {
+    grid-column: 2;
+    width: fit-content;
+  }
+}

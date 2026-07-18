@@ -1,0 +1,77 @@
+.card {
+  background: #ffffff;
+  border: 1px solid #e5eaf0;
+  border-radius: 21px;
+  padding: 18px;
+  box-shadow: 0 16px 40px rgba(21, 42, 77, 0.09);
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.heading span:first-child {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.heading h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #eaf2ff;
+  color: #0d5bd7;
+  display: grid;
+  place-items: center;
+}
+
+.track {
+  height: 9px;
+  margin: 18px 0 14px;
+  background: #edf1f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.track span {
+  width: 95%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0d5bd7, #2b84ff);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 10px;
+}
+
+.stats div {
+  padding: 12px;
+  border-radius: 14px;
+  background: #f6f8fb;
+}
+
+.stats small {
+  display: block;
+  color: #667085;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.stats strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
