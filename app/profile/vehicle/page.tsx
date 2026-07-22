@@ -1,87 +1,198 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ArrowLeft, CarFront, Check, Pencil, Save, X } from "lucide-react";
+import {
+  ArrowLeft,
+  CarFront,
+  Check,
+  LoaderCircle,
+  Pencil,
+  Save,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { VehiclePhotoPicker } from "@/components/profile/VehiclePhotoPicker";
+import { ApiError, type SwmVehicle } from "@/lib/api/swmApi";
 import {
-  getVehicleProfile,
-  saveVehicleProfile,
-  type VehicleProfile,
-} from "@/lib/storage/vehicleProfileStorage";
-import { getVehicleMileage } from "@/lib/storage/vehicleStorage";
+  getPrimaryVehicle,
+  updatePrimaryVehicle,
+} from "@/lib/vehicle/vehicleService";
 import styles from "./vehicle.module.css";
+
+interface VehicleDraft {
+  model: string;
+  year: string;
+  engine: string;
+  transmission: string;
+  plate: string;
+  color: string;
+  fuelType: string;
+  vin: string;
+}
 
 function formatMileage(value: number): string {
   return new Intl.NumberFormat("es-EC").format(value);
 }
 
+function toDraft(vehicle: SwmVehicle): VehicleDraft {
+  return {
+    model: vehicle.model,
+    year: String(vehicle.year),
+    engine: vehicle.engine || "",
+    transmission: vehicle.transmission || "",
+    plate: vehicle.plate || "",
+    color: vehicle.color || "",
+    fuelType: vehicle.fuel_type || "Gasolina",
+    vin: vehicle.vin || "",
+  };
+}
+
 export default function VehiclePage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<VehicleProfile>({
-    brand: "SWM",
+  const [vehicle, setVehicle] = useState<SwmVehicle | null>(null);
+  const [draft, setDraft] = useState<VehicleDraft>({
     model: "G01",
     year: "2022",
-    version: "Turbo",
+    engine: "1.5 Turbo",
     transmission: "Manual",
     plate: "",
     color: "Blanco",
-    fuel: "Gasolina",
+    fuelType: "Gasolina",
     vin: "",
   });
-  const [draft, setDraft] = useState(profile);
-  const [mileage, setMileage] = useState(89500);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const storedProfile = getVehicleProfile();
-    setProfile(storedProfile);
-    setDraft(storedProfile);
-    setMileage(getVehicleMileage().mileage);
-  }, []);
+    let active = true;
+
+    async function loadVehicle() {
+      try {
+        const currentVehicle = await getPrimaryVehicle();
+
+        if (!active) return;
+
+        if (!currentVehicle) {
+          router.replace("/profile/vehicle/new");
+          return;
+        }
+
+        setVehicle(currentVehicle);
+        setDraft(toDraft(currentVehicle));
+      } catch (reason) {
+        if (!active) return;
+
+        setError(
+          reason instanceof ApiError
+            ? reason.detail
+            : "No se pudo cargar el vehículo.",
+        );
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadVehicle();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   function startEditing() {
-    setDraft(profile);
+    if (!vehicle) return;
+
+    setDraft(toDraft(vehicle));
     setSaved(false);
+    setError("");
     setIsEditing(true);
   }
 
   function cancelEditing() {
-    setDraft(profile);
+    if (vehicle) {
+      setDraft(toDraft(vehicle));
+    }
+
+    setError("");
     setIsEditing(false);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const cleanProfile: VehicleProfile = {
-      ...draft,
-      brand: draft.brand.trim() || "SWM",
-      model: draft.model.trim() || "G01",
-      year: draft.year.trim(),
-      version: draft.version.trim(),
-      transmission: draft.transmission.trim(),
-      plate: draft.plate.trim().toUpperCase(),
-      color: draft.color.trim(),
-      fuel: draft.fuel.trim(),
-      vin: draft.vin.trim().toUpperCase(),
-    };
+    if (!vehicle) return;
 
-    const updated = saveVehicleProfile(cleanProfile);
-    setProfile(updated);
-    setDraft(updated);
-    setIsEditing(false);
-    setSaved(true);
+    const parsedYear = Number(draft.year);
 
-    window.setTimeout(() => setSaved(false), 2200);
+    if (!Number.isInteger(parsedYear) || parsedYear < 1900 || parsedYear > 2100) {
+      setError("Ingresa un año válido.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const updatedVehicle = await updatePrimaryVehicle(vehicle.id, {
+        model: draft.model.trim().toUpperCase() || "G01",
+        year: parsedYear,
+        engine: draft.engine.trim() || null,
+        transmission: draft.transmission.trim() || null,
+        plate: draft.plate.trim().toUpperCase() || null,
+        color: draft.color.trim() || null,
+        fuel_type: draft.fuelType.trim() || "Gasolina",
+        vin: draft.vin.trim().toUpperCase() || null,
+      });
+
+      setVehicle(updatedVehicle);
+      setDraft(toDraft(updatedVehicle));
+      setIsEditing(false);
+      setSaved(true);
+
+      window.setTimeout(() => setSaved(false), 2200);
+    } catch (reason) {
+      setError(
+        reason instanceof ApiError
+          ? reason.detail
+          : "No se pudo actualizar la información.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function updateField(field: keyof VehicleProfile, value: string) {
+  function updateField(field: keyof VehicleDraft, value: string) {
     setDraft((current) => ({
       ...current,
       [field]: value,
     }));
+    setError("");
+  }
+
+  if (loading) {
+    return (
+      <main className={styles.shell}>
+        <section
+          style={{
+            minHeight: "100dvh",
+            display: "grid",
+            placeItems: "center",
+            color: "#1263e5",
+          }}
+        >
+          <LoaderCircle size={34} className="swm-spinner" />
+        </section>
+      </main>
+    );
+  }
+
+  if (!vehicle) {
+    return null;
   }
 
   return (
@@ -116,6 +227,7 @@ export default function VehiclePage() {
             className={styles.closeButton}
             onClick={cancelEditing}
             aria-label="Cancelar edición"
+            disabled={saving}
           >
             <X size={20} />
           </button>
@@ -127,18 +239,16 @@ export default function VehiclePage() {
           <div className={styles.vehicleTop}>
             <div>
               <span>Vehículo principal</span>
-              <h2>
-                {profile.brand} {profile.model}
-              </h2>
+              <h2>SWM {vehicle.model}</h2>
               <p>
-                {profile.year || "Año"} · {profile.version || "Versión"} ·{" "}
-                {profile.transmission || "Transmisión"}
+                {vehicle.year} · {vehicle.engine || "Motor sin registrar"} ·{" "}
+                {vehicle.transmission || "Transmisión sin registrar"}
               </p>
             </div>
 
             <VehiclePhotoPicker
               className={styles.vehiclePhoto}
-              alt={`${profile.brand} ${profile.model}`}
+              alt={`SWM ${vehicle.model}`}
             />
           </div>
 
@@ -146,7 +256,7 @@ export default function VehiclePage() {
             <CarFront size={20} />
             <span>
               <small>Kilometraje actual</small>
-              <strong>{formatMileage(mileage)} km</strong>
+              <strong>{formatMileage(vehicle.current_mileage)} km</strong>
             </span>
           </div>
         </article>
@@ -154,28 +264,30 @@ export default function VehiclePage() {
         {saved && (
           <div className={styles.savedMessage}>
             <Check size={17} />
-            Información actualizada
+            Información actualizada en la nube
+          </div>
+        )}
+
+        {error && (
+          <div className={styles.savedMessage}>
+            <X size={17} />
+            {error}
           </div>
         )}
 
         {!isEditing ? (
           <section className={styles.details}>
-            <Detail label="Placa" value={profile.plate || "Sin registrar"} />
-            <Detail label="Color" value={profile.color || "Sin registrar"} />
+            <Detail label="Placa" value={vehicle.plate || "Sin registrar"} />
+            <Detail label="Color" value={vehicle.color || "Sin registrar"} />
             <Detail
               label="Combustible"
-              value={profile.fuel || "Sin registrar"}
+              value={vehicle.fuel_type || "Sin registrar"}
             />
-            <Detail label="VIN" value={profile.vin || "Sin registrar"} />
+            <Detail label="VIN" value={vehicle.vin || "Sin registrar"} />
           </section>
         ) : (
           <form className={styles.form} onSubmit={handleSubmit}>
             <div className={styles.grid}>
-              <Field
-                label="Marca"
-                value={draft.brand}
-                onChange={(value) => updateField("brand", value)}
-              />
               <Field
                 label="Modelo"
                 value={draft.model}
@@ -188,9 +300,9 @@ export default function VehiclePage() {
                 onChange={(value) => updateField("year", value)}
               />
               <Field
-                label="Versión"
-                value={draft.version}
-                onChange={(value) => updateField("version", value)}
+                label="Motor / versión"
+                value={draft.engine}
+                onChange={(value) => updateField("engine", value)}
               />
               <Field
                 label="Transmisión"
@@ -209,8 +321,8 @@ export default function VehiclePage() {
               />
               <Field
                 label="Combustible"
-                value={draft.fuel}
-                onChange={(value) => updateField("fuel", value)}
+                value={draft.fuelType}
+                onChange={(value) => updateField("fuelType", value)}
               />
             </div>
 
@@ -220,9 +332,13 @@ export default function VehiclePage() {
               onChange={(value) => updateField("vin", value)}
             />
 
-            <button className={styles.saveButton} type="submit">
+            <button
+              className={styles.saveButton}
+              type="submit"
+              disabled={saving}
+            >
               <Save size={18} />
-              Guardar cambios
+              {saving ? "Guardando..." : "Guardar cambios"}
             </button>
           </form>
         )}

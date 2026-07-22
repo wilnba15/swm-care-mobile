@@ -1,0 +1,209 @@
+.shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 20px 14px;
+  background: #eef3f8;
+}
+
+.card {
+  width: min(100%, 560px);
+  padding: 24px;
+  border-radius: 30px;
+  background: #ffffff;
+  box-shadow: 0 22px 60px rgba(15, 30, 55, 0.14);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: 43px 1fr 43px;
+  align-items: center;
+}
+
+.header > button {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  color: #1263e5;
+  background: #edf4ff;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.brand > span {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #2075ef, #0755ce);
+}
+
+.brand strong {
+  color: #0a1b33;
+  font-size: 20px;
+}
+
+.titleBlock {
+  margin: 24px 0 22px;
+  text-align: center;
+}
+
+.titleBlock > span {
+  display: inline-block;
+  padding: 7px 13px;
+  border-radius: 999px;
+  color: #1263e5;
+  background: #edf4ff;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.titleBlock h1 {
+  margin: 12px 0 0;
+  color: #08172d;
+  font-size: clamp(30px, 7vw, 40px);
+  line-height: 1.05;
+}
+
+.form {
+  display: grid;
+  gap: 17px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.field > span {
+  color: #20324e;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.field > input,
+.mileageInput {
+  min-height: 52px;
+  width: 100%;
+  border: 1px solid #dce5f0;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.field > input {
+  padding: 0 14px;
+  outline: 0;
+  color: #0a172a;
+  font-size: 16px;
+}
+
+.field > input:focus,
+.mileageInput:focus-within {
+  border-color: #1263e5;
+  box-shadow: 0 0 0 4px rgba(18, 99, 229, 0.1);
+}
+
+.mileageInput {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  color: #6d83a2;
+}
+
+.mileageInput input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0a172a;
+  font-size: 16px;
+}
+
+.mileageInput strong {
+  color: #20324e;
+}
+
+.error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 13px;
+  color: #b42318;
+  background: #fff1f1;
+  font-size: 14px;
+}
+
+.submitButton {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 17px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #1263e5, #0755ce);
+  font-weight: 850;
+  font-size: 16px;
+  box-shadow: 0 14px 26px rgba(18, 99, 229, 0.24);
+}
+
+.submitButton:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.loading {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  color: #1263e5;
+  font-weight: 750;
+}
+
+@media (max-width: 620px) {
+  .shell {
+    padding: 0;
+    place-items: stretch;
+  }
+
+  .card {
+    width: 100%;
+    min-height: 100dvh;
+    padding: 21px 18px 32px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .titleBlock {
+    margin: 20px 0 20px;
+  }
+
+  .titleBlock h1 {
+    font-size: 32px;
+  }
+}

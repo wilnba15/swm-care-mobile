@@ -8,11 +8,18 @@ import {
   ChevronRight,
   FileText,
   Info,
+  LoaderCircle,
   Settings,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { BottomNavigation } from "@/components/mobile/BottomNavigation";
 import { VehiclePhotoPicker } from "@/components/profile/VehiclePhotoPicker";
-import { getVehicleMileage } from "@/lib/storage/vehicleStorage";
+import { getCurrentUser } from "@/lib/auth/authStorage";
+import { ApiError, type SwmVehicle } from "@/lib/api/swmApi";
+import {
+  getPrimaryVehicle,
+  VEHICLE_UPDATED_EVENT,
+} from "@/lib/vehicle/vehicleService";
 import styles from "./profile.module.css";
 
 function formatMileage(value: number): string {
@@ -20,10 +27,6 @@ function formatMileage(value: number): string {
 }
 
 function formatUpdatedAt(value: string): string {
-  if (!value) {
-    return "Sin actualizaciones";
-  }
-
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -35,6 +38,21 @@ function formatUpdatedAt(value: string): string {
     month: "short",
     year: "numeric",
   }).format(date);
+}
+
+function getInitials(): string {
+  const user = getCurrentUser();
+
+  if (!user?.full_name) {
+    return "SW";
+  }
+
+  return user.full_name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
 }
 
 const menuItems = [
@@ -67,40 +85,59 @@ const menuItems = [
 ];
 
 export default function ProfilePage() {
-  const [mileage, setMileage] = useState(89500);
-  const [updatedAt, setUpdatedAt] = useState("");
+  const router = useRouter();
+  const [vehicle, setVehicle] = useState<SwmVehicle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [initials, setInitials] = useState("SW");
 
   useEffect(() => {
-    const current = getVehicleMileage();
-    setMileage(current.mileage);
-    setUpdatedAt(current.updatedAt);
+    let active = true;
+    setInitials(getInitials());
 
-    function handleMileageUpdated(event: Event) {
-      const customEvent = event as CustomEvent<{
-        mileage: number;
-        updatedAt: string;
-      }>;
+    async function loadVehicle() {
+      try {
+        const currentVehicle = await getPrimaryVehicle();
 
-      if (!customEvent.detail) {
-        return;
+        if (!active) return;
+
+        if (!currentVehicle) {
+          router.replace("/profile/vehicle/new");
+          return;
+        }
+
+        setVehicle(currentVehicle);
+      } catch (reason) {
+        if (!active) return;
+
+        setError(
+          reason instanceof ApiError
+            ? reason.detail
+            : "No se pudo cargar el vehículo.",
+        );
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
-
-      setMileage(customEvent.detail.mileage);
-      setUpdatedAt(customEvent.detail.updatedAt);
     }
 
-    window.addEventListener(
-      "swm:vehicle-mileage-updated",
-      handleMileageUpdated,
-    );
+    void loadVehicle();
+
+    function handleVehicleUpdated(event: Event) {
+      const customEvent = event as CustomEvent<SwmVehicle | null>;
+      if (customEvent.detail) {
+        setVehicle(customEvent.detail);
+      }
+    }
+
+    window.addEventListener(VEHICLE_UPDATED_EVENT, handleVehicleUpdated);
 
     return () => {
-      window.removeEventListener(
-        "swm:vehicle-mileage-updated",
-        handleMileageUpdated,
-      );
+      active = false;
+      window.removeEventListener(VEHICLE_UPDATED_EVENT, handleVehicleUpdated);
     };
-  }, []);
+  }, [router]);
 
   return (
     <main className={styles.shell}>
@@ -110,44 +147,66 @@ export default function ProfilePage() {
           <h1>Perfil</h1>
         </div>
 
-        <div className={styles.avatar} aria-hidden="true">
-          WV
+        <div className={styles.avatar} aria-label="Iniciales del usuario">
+          {initials}
         </div>
       </header>
 
       <section className={styles.content}>
-        <article className={styles.vehicleCard}>
-          <div className={styles.vehicleTop}>
-            <div>
-              <span className={styles.vehicleLabel}>Mi vehículo</span>
-              <h2>SWM G01</h2>
-              <p>2022 · Turbo · Manual</p>
+        {loading ? (
+          <article className={styles.vehicleCard}>
+            <div
+              style={{
+                minHeight: 210,
+                display: "grid",
+                placeItems: "center",
+                color: "#8fb2e9",
+              }}
+            >
+              <LoaderCircle size={30} className="swm-spinner" />
+            </div>
+          </article>
+        ) : vehicle ? (
+          <article className={styles.vehicleCard}>
+            <div className={styles.vehicleTop}>
+              <div>
+                <span className={styles.vehicleLabel}>Mi vehículo</span>
+                <h2>SWM {vehicle.model}</h2>
+                <p>
+                  {vehicle.year} · {vehicle.engine || "Motor sin registrar"} ·{" "}
+                  {vehicle.transmission || "Transmisión sin registrar"}
+                </p>
+              </div>
+
+              <VehiclePhotoPicker
+                className={styles.vehiclePhoto}
+                alt={`SWM ${vehicle.model}`}
+                editable={false}
+              />
             </div>
 
-            <VehiclePhotoPicker
-              className={styles.vehiclePhoto}
-              alt="SWM G01"
-              editable={false}
-            />
-          </div>
+            <div className={styles.vehicleStats}>
+              <div>
+                <span>Kilometraje</span>
+                <strong>{formatMileage(vehicle.current_mileage)} km</strong>
+              </div>
 
-          <div className={styles.vehicleStats}>
-            <div>
-              <span>Kilometraje</span>
-              <strong>{formatMileage(mileage)} km</strong>
+              <div>
+                <span>Actualizado</span>
+                <strong>{formatUpdatedAt(vehicle.updated_at)}</strong>
+              </div>
             </div>
 
-            <div>
-              <span>Actualizado</span>
-              <strong>{formatUpdatedAt(updatedAt)}</strong>
+            <div className={styles.status}>
+              <span />
+              Vehículo registrado en la nube
             </div>
-          </div>
-
-          <div className={styles.status}>
-            <span />
-            Vehículo registrado
-          </div>
-        </article>
+          </article>
+        ) : (
+          <article className={styles.vehicleCard}>
+            <p>{error || "No se encontró un vehículo registrado."}</p>
+          </article>
+        )}
 
         <section className={styles.menu} aria-label="Opciones del perfil">
           {menuItems.map(({ label, description, icon: Icon, href }) => {
@@ -178,7 +237,7 @@ export default function ProfilePage() {
           })}
         </section>
 
-        <p className={styles.version}>SWM Care Mobile · Versión 1.0</p>
+        <p className={styles.version}>SWM Care Mobile · Versión 2.0</p>
       </section>
 
       <BottomNavigation />
