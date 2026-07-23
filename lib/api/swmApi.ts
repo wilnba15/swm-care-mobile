@@ -236,3 +236,113 @@ export async function getVehicleDashboard(
 export function getApiUrl(): string {
   return API_URL;
 }
+
+// =========================
+// COMBUSTIBLE
+// =========================
+
+export interface SwmFuelRecord {
+  id: number;
+  vehicle_id: number;
+  fuel_date: string;
+  mileage: number;
+  amount: number;
+  notes?: string;
+  created_at: string;
+}
+
+export interface SwmFuelCreatePayload {
+  vehicle_id: number;
+  fuel_date: string;
+  mileage: number;
+  amount: number;
+  notes?: string;
+}
+
+export async function createFuelRecord(
+  payload: SwmFuelCreatePayload
+): Promise<SwmFuelRecord> {
+  return request(
+    "/swm/fuel",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    true
+  );
+}
+
+export async function getFuelRecords(
+  vehicleId: number
+): Promise<SwmFuelRecord[]> {
+  return request(
+    `/swm/vehicles/${vehicleId}/fuel`,
+    {},
+    true
+  );
+}
+
+// =========================
+// SERVICIOS
+// =========================
+
+export interface SwmServiceOrder {
+  id: number;
+  vehicle_id: number;
+  order_number?: string | null;
+  order_type: string;
+  title?: string | null;
+  description?: string | null;
+  service_mileage: number;
+  service_date: string;
+  workshop?: string | null;
+  mechanic_name?: string | null;
+  labor_cost: number | string;
+  parts_cost: number | string;
+  total_cost: number | string;
+  invoice_number?: string | null;
+  status: string;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface SwmServiceOrderCreatePayload {
+  vehicle_id: number;
+  order_number?: string | null;
+  order_type: string;
+  title?: string | null;
+  description?: string | null;
+  service_mileage: number;
+  service_date: string;
+  workshop?: string | null;
+  mechanic_name?: string | null;
+  labor_cost?: number;
+  parts_cost?: number;
+  total_cost: number;
+  invoice_number?: string | null;
+  status?: string;
+  notes?: string | null;
+}
+
+export async function createServiceOrder(
+  payload: SwmServiceOrderCreatePayload,
+): Promise<SwmServiceOrder> {
+  return request<SwmServiceOrder>(
+    "/swm/service-orders",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    true,
+  );
+}
+
+export async function getVehicleServiceOrders(
+  vehicleId: number,
+): Promise<SwmServiceOrder[]> {
+  return request<SwmServiceOrder[]>(
+    `/swm/vehicles/${vehicleId}/service-orders`,
+    {},
+    true,
+  );
+}

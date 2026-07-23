@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Fuel, ReceiptText, Wrench } from "lucide-react";
-import { getFuelRecords } from "@/lib/storage/fuelStorage";
-import { getServiceRecords } from "@/lib/storage/serviceStorage";
-import type { FuelRecord } from "@/lib/types/fuel";
+import { loadFuelCloud } from "@/lib/fuel/fuelService";
+import {
+  loadServiceCloud,
+  SERVICE_CLOUD_UPDATED_EVENT,
+} from "@/lib/service/serviceService";
+import type { SwmFuelRecord } from "@/lib/api/swmApi";
 import type { ServiceRecord } from "@/lib/types/service";
 import styles from "./RecentActivity.module.css";
 
@@ -33,46 +36,90 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
+function parseFuelNotes(notes?: string | null) {
+  const text = notes || "";
+  const type =
+    text.match(/Combustible:\s*([^|]+)/i)?.[1]?.trim() || "Combustible";
+  const gallonsText = text.match(/Galones:\s*([\d.,]+)/i)?.[1];
+  const gallons = gallonsText
+    ? Number(gallonsText.replace(",", "."))
+    : null;
+
+  return {
+    type,
+    gallons: Number.isFinite(gallons) ? gallons : null,
+  };
+}
+
 function serviceTitle(record: ServiceRecord): string {
   const text = record.notes || record.description || record.category;
-
   return text.length > 36 ? `${text.slice(0, 36)}…` : text;
 }
 
 export function RecentActivity() {
-  const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
+  const [fuelRecords, setFuelRecords] = useState<SwmFuelRecord[]>([]);
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    function refresh() {
-      setFuelRecords(getFuelRecords());
-      setServiceRecords(getServiceRecords());
+    let active = true;
+
+    async function refreshAll() {
+      try {
+        const [fuel, services] = await Promise.all([
+          loadFuelCloud(),
+          loadServiceCloud(),
+        ]);
+
+        if (!active) return;
+
+        setFuelRecords(fuel);
+        setServiceRecords(services);
+      } catch {
+        if (!active) return;
+
+        setFuelRecords([]);
+        setServiceRecords([]);
+      } finally {
+        if (active) setLoading(false);
+      }
     }
 
-    refresh();
-    window.addEventListener("swm:fuel-added", refresh);
-    window.addEventListener("swm:service-added", refresh);
+    void refreshAll();
+
+    const refresh = () => void refreshAll();
+
+    window.addEventListener("swm:fuel-cloud-updated", refresh);
+    window.addEventListener(SERVICE_CLOUD_UPDATED_EVENT, refresh);
 
     return () => {
-      window.removeEventListener("swm:fuel-added", refresh);
-      window.removeEventListener("swm:service-added", refresh);
+      active = false;
+      window.removeEventListener("swm:fuel-cloud-updated", refresh);
+      window.removeEventListener(SERVICE_CLOUD_UPDATED_EVENT, refresh);
     };
   }, []);
 
   const activities = useMemo<ActivityItem[]>(() => {
-    const fuelActivities: ActivityItem[] = fuelRecords.map((record) => ({
-      id: record.id,
-      kind: "fuel",
-      title: "Carga de combustible",
-      detail: `${record.fuelType} · ${record.gallons.toFixed(2)} galones`,
-      date: record.date,
-      value: record.total,
-      createdAt: record.createdAt,
-    }));
+    const fuels = fuelRecords.map((record) => {
+      const parsed = parseFuelNotes(record.notes);
 
-    const serviceActivities: ActivityItem[] = serviceRecords.map((record) => ({
-      id: record.id,
-      kind: "service",
+      return {
+        id: `fuel-${record.id}`,
+        kind: "fuel" as const,
+        title: "Carga de combustible",
+        detail:
+          parsed.gallons !== null
+            ? `${parsed.type} · ${parsed.gallons.toFixed(2)} galones`
+            : parsed.type,
+        date: record.fuel_date,
+        value: Number(record.amount),
+        createdAt: record.created_at,
+      };
+    });
+
+    const services = serviceRecords.map((record) => ({
+      id: `service-${record.id}`,
+      kind: "service" as const,
       title: serviceTitle(record),
       detail: record.category,
       date: record.date,
@@ -80,10 +127,11 @@ export function RecentActivity() {
       createdAt: record.createdAt,
     }));
 
-    return [...fuelActivities, ...serviceActivities]
+    return [...fuels, ...services]
       .sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime(),
       )
       .slice(0, 3);
   }, [fuelRecords, serviceRecords]);
@@ -91,24 +139,24 @@ export function RecentActivity() {
   const monthlyTotal = useMemo(() => {
     const now = new Date();
 
-    const isCurrentMonth = (date: string) => {
-      const recordDate = new Date(`${date}T12:00:00`);
+    const currentMonth = (date: string) => {
+      const value = new Date(`${date}T12:00:00`);
 
       return (
-        recordDate.getMonth() === now.getMonth() &&
-        recordDate.getFullYear() === now.getFullYear()
+        value.getMonth() === now.getMonth() &&
+        value.getFullYear() === now.getFullYear()
       );
     };
 
-    const fuelTotal = fuelRecords
-      .filter((record) => isCurrentMonth(record.date))
-      .reduce((total, record) => total + record.total, 0);
+    const fuel = fuelRecords
+      .filter((record) => currentMonth(record.fuel_date))
+      .reduce((sum, record) => sum + Number(record.amount), 0);
 
-    const serviceTotal = serviceRecords
-      .filter((record) => isCurrentMonth(record.date))
-      .reduce((total, record) => total + record.total, 0);
+    const services = serviceRecords
+      .filter((record) => currentMonth(record.date))
+      .reduce((sum, record) => sum + record.total, 0);
 
-    return fuelTotal + serviceTotal;
+    return fuel + services;
   }, [fuelRecords, serviceRecords]);
 
   return (
@@ -119,12 +167,23 @@ export function RecentActivity() {
       </div>
 
       <div className={styles.list}>
-        {activities.length === 0 && (
+        {loading && activities.length === 0 && (
+          <article className={styles.item}>
+            <span className={styles.icon}>
+              <ReceiptText size={19} />
+            </span>
+            <div className={styles.copy}>
+              <strong>Cargando actividad...</strong>
+              <span>Consultando la nube</span>
+            </div>
+          </article>
+        )}
+
+        {!loading && activities.length === 0 && (
           <article className={styles.item}>
             <span className={styles.icon}>
               <Wrench size={19} />
             </span>
-
             <div className={styles.copy}>
               <strong>Sin registros todavía</strong>
               <span>Usa el botón azul para comenzar</span>

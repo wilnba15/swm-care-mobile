@@ -11,9 +11,13 @@ import {
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { BottomNavigation } from "@/components/mobile/BottomNavigation";
 import { HistoryRecordCard } from "@/components/history/HistoryRecordCard";
-import { getFuelRecords } from "@/lib/storage/fuelStorage";
-import { getServiceRecords } from "@/lib/storage/serviceStorage";
-import type { FuelRecord } from "@/lib/types/fuel";
+import { loadFuelCloud } from "@/lib/fuel/fuelService";
+import {
+  loadServiceCloud,
+  SERVICE_CLOUD_UPDATED_EVENT,
+} from "@/lib/service/serviceService";
+import { getPrimaryVehicle } from "@/lib/vehicle/vehicleService";
+import type { SwmFuelRecord, SwmVehicle } from "@/lib/api/swmApi";
 import type { ServiceRecord } from "@/lib/types/service";
 import styles from "./history.module.css";
 
@@ -52,31 +56,93 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
+function parseFuelNotes(notes?: string | null) {
+  const text = notes || "";
+  const type = text.match(/Combustible:\s*([^|]+)/i)?.[1]?.trim() || "Combustible";
+  const gallonsText = text.match(/Galones:\s*([\d.,]+)/i)?.[1];
+  const gallons = gallonsText ? Number(gallonsText.replace(",", ".")) : 0;
+
+  return {
+    type,
+    gallons: Number.isFinite(gallons) ? gallons : 0,
+  };
+}
+
+function vehicleSubtitle(vehicle: SwmVehicle | null): string {
+  if (!vehicle) return "Vehículo registrado";
+
+  return [
+    vehicle.year,
+    vehicle.engine || "Motor sin registrar",
+    vehicle.transmission || "Transmisión sin registrar",
+  ].join(" · ");
+}
+
 export default function HistoryPage() {
   const [filter, setFilter] = useState<HistoryFilter>("all");
-  const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
+  const [fuelRecords, setFuelRecords] = useState<SwmFuelRecord[]>([]);
   const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([]);
+  const [vehicle, setVehicle] = useState<SwmVehicle | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    function refresh() {
-      setFuelRecords(getFuelRecords());
-      setServiceRecords(getServiceRecords());
+    let active = true;
+
+    async function refreshFuel() {
+      try {
+        const records = await loadFuelCloud();
+        if (active) setFuelRecords(records);
+      } catch {
+        if (active) setFuelRecords([]);
+      } finally {
+        if (active) setLoading(false);
+      }
     }
 
-    refresh();
+    async function refreshVehicle() {
+      try {
+        const current = await getPrimaryVehicle();
+        if (active) setVehicle(current);
+      } catch {
+        if (active) setVehicle(null);
+      }
+    }
 
-    window.addEventListener("swm:fuel-added", refresh);
-    window.addEventListener("swm:service-added", refresh);
+    async function refreshServices() {
+      try {
+        const records = await loadServiceCloud();
+        if (active) setServiceRecords(records);
+      } catch {
+        if (active) setServiceRecords([]);
+      }
+    }
+
+    void refreshFuel();
+    void refreshVehicle();
+    void refreshServices();
+
+    const handleFuelUpdated = () => void refreshFuel();
+    const handleServiceUpdated = () => void refreshServices();
+
+    window.addEventListener("swm:fuel-cloud-updated", handleFuelUpdated);
+    window.addEventListener(
+      SERVICE_CLOUD_UPDATED_EVENT,
+      handleServiceUpdated,
+    );
 
     return () => {
-      window.removeEventListener("swm:fuel-added", refresh);
-      window.removeEventListener("swm:service-added", refresh);
+      active = false;
+      window.removeEventListener("swm:fuel-cloud-updated", handleFuelUpdated);
+      window.removeEventListener(
+        SERVICE_CLOUD_UPDATED_EVENT,
+        handleServiceUpdated,
+      );
     };
   }, []);
 
   const historyItems = useMemo<HistoryItem[]>(() => {
     const services: HistoryItem[] = serviceRecords.map((record) => ({
-      id: record.id,
+      id: String(record.id),
       type: "service",
       date: record.date,
       title: record.notes || record.description || record.category,
@@ -89,26 +155,28 @@ export default function HistoryPage() {
       createdAt: record.createdAt,
     }));
 
-    const fuel: HistoryItem[] = fuelRecords.map((record) => ({
-      id: record.id,
-      type: "fuel",
-      date: record.date,
-      title: "Carga de combustible",
-      category: record.fuelType,
-      mileage: record.mileage,
-      total: record.total,
-      gallons: record.gallons,
-      createdAt: record.createdAt,
-    }));
+    const fuels: HistoryItem[] = fuelRecords.map((record) => {
+      const parsed = parseFuelNotes(record.notes);
 
-    return [...services, ...fuel].sort((a, b) => {
-      const dateDifference =
+      return {
+        id: String(record.id),
+        type: "fuel",
+        date: record.fuel_date,
+        title: "Carga de combustible",
+        category: parsed.type,
+        mileage: record.mileage,
+        total: Number(record.amount),
+        gallons: parsed.gallons,
+        createdAt: record.created_at,
+      };
+    });
+
+    return [...services, ...fuels].sort((a, b) => {
+      const byDate =
         new Date(`${b.date}T12:00:00`).getTime() -
         new Date(`${a.date}T12:00:00`).getTime();
 
-      if (dateDifference !== 0) {
-        return dateDifference;
-      }
+      if (byDate !== 0) return byDate;
 
       return (
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -117,10 +185,7 @@ export default function HistoryPage() {
   }, [fuelRecords, serviceRecords]);
 
   const filteredItems = useMemo(() => {
-    if (filter === "all") {
-      return historyItems;
-    }
-
+    if (filter === "all") return historyItems;
     return historyItems.filter((item) => item.type === filter);
   }, [filter, historyItems]);
 
@@ -131,7 +196,7 @@ export default function HistoryPage() {
     );
 
     const fuelTotal = fuelRecords.reduce(
-      (sum, record) => sum + record.total,
+      (sum, record) => sum + Number(record.amount),
       0,
     );
 
@@ -141,10 +206,6 @@ export default function HistoryPage() {
       grandTotal: serviceTotal + fuelTotal,
     };
   }, [fuelRecords, serviceRecords]);
-
-  function generatePdf() {
-    window.print();
-  }
 
   return (
     <main className={styles.shell}>
@@ -167,11 +228,11 @@ export default function HistoryPage() {
 
         <section className={styles.reportHeader}>
           <div>
-            <strong>SWM G01</strong>
-            <span>2022 · Turbo · Manual</span>
+            <strong>SWM {vehicle?.model || "G01"}</strong>
+            <span>{vehicleSubtitle(vehicle)}</span>
           </div>
 
-          <button type="button" onClick={generatePdf}>
+          <button type="button" onClick={() => window.print()}>
             <FileDown size={18} />
             Generar PDF
           </button>
@@ -232,17 +293,24 @@ export default function HistoryPage() {
           </div>
 
           <div className={styles.list}>
-            {filteredItems.length === 0 ? (
+            {loading && filteredItems.length === 0 ? (
+              <div className={styles.emptyState}>
+                <HistoryIcon size={30} />
+                <strong>Cargando registros...</strong>
+                <span>Consultando la información guardada en la nube.</span>
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className={styles.emptyState}>
                 <HistoryIcon size={30} />
                 <strong>No hay registros</strong>
-                <span>
-                  Los servicios y cargas guardados aparecerán aquí.
-                </span>
+                <span>Los servicios y cargas guardados aparecerán aquí.</span>
               </div>
             ) : (
               filteredItems.map((item) => (
-                <HistoryRecordCard item={item} key={`${item.type}-${item.id}`} />
+                <HistoryRecordCard
+                  item={item}
+                  key={`${item.type}-${item.id}`}
+                />
               ))
             )}
           </div>

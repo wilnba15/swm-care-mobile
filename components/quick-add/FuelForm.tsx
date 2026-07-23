@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Fuel, X } from "lucide-react";
-import { saveFuelRecord } from "@/lib/storage/fuelStorage";
+import { ApiError } from "@/lib/api/swmApi";
+import { saveFuelCloud } from "@/lib/fuel/fuelService";
+import { getPrimaryVehicle } from "@/lib/vehicle/vehicleService";
 import type { FuelType } from "@/lib/types/fuel";
 import styles from "./FuelForm.module.css";
 
@@ -15,14 +17,52 @@ export function FuelForm({ onClose, onSaved }: FuelFormProps) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const [date, setDate] = useState(today);
-  const [mileage, setMileage] = useState("89500");
+  const [mileage, setMileage] = useState("");
   const [fuelType, setFuelType] = useState<FuelType>("Extra");
   const [gallons, setGallons] = useState("");
   const [total, setTotal] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  const [loadingVehicle, setLoadingVehicle] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadMileage() {
+      try {
+        const vehicle = await getPrimaryVehicle();
+
+        if (!active) return;
+
+        if (!vehicle) {
+          setError("Primero debes registrar tu vehículo.");
+          return;
+        }
+
+        setMileage(String(vehicle.current_mileage));
+      } catch (reason) {
+        if (!active) return;
+
+        setError(
+          reason instanceof ApiError
+            ? reason.detail
+            : "No se pudo cargar el kilometraje del vehículo.",
+        );
+      } finally {
+        if (active) setLoadingVehicle(false);
+      }
+    }
+
+    void loadMileage();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -35,21 +75,38 @@ export function FuelForm({ onClose, onSaved }: FuelFormProps) {
       return;
     }
 
-    saveFuelRecord({
-      id: crypto.randomUUID(),
-      date,
-      mileage: mileageValue,
-      fuelType,
-      gallons: gallonsValue,
-      pricePerGallon: Number((totalValue / gallonsValue).toFixed(4)),
-      total: Number(totalValue.toFixed(2)),
-      station: "",
-      fullTank: false,
-      notes: notes.trim(),
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      setSaving(true);
 
-    onSaved();
+      const fuelNotes = [
+        `Combustible: ${fuelType}`,
+        `Galones: ${gallonsValue.toFixed(2)}`,
+        `Precio por galón: $${(totalValue / gallonsValue).toFixed(4)}`,
+        notes.trim() ? `Observaciones: ${notes.trim()}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      await saveFuelCloud({
+        date,
+        mileage: mileageValue,
+        total: Number(totalValue.toFixed(2)),
+        notes: fuelNotes,
+      });
+
+      window.dispatchEvent(new CustomEvent("swm:fuel-cloud-updated"));
+      onSaved();
+    } catch (reason) {
+      setError(
+        reason instanceof ApiError
+          ? reason.detail
+          : reason instanceof Error
+            ? reason.message
+            : "No se pudo guardar la carga de combustible.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -83,6 +140,7 @@ export function FuelForm({ onClose, onSaved }: FuelFormProps) {
               value={mileage}
               onChange={(e) => setMileage(e.target.value)}
               placeholder="Ej. 89500"
+              disabled={saving || loadingVehicle}
             />
           </label>
         </div>
@@ -141,8 +199,8 @@ export function FuelForm({ onClose, onSaved }: FuelFormProps) {
           <button type="button" className={styles.cancel} onClick={onClose}>
             Cancelar
           </button>
-          <button type="submit" className={styles.save}>
-            Guardar carga
+          <button type="submit" className={styles.save} disabled={saving}>
+            {saving ? "Guardando..." : "Guardar carga"}
           </button>
         </div>
       </form>

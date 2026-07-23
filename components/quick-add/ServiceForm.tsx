@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Wrench, X } from "lucide-react";
-import { saveServiceRecord } from "@/lib/storage/serviceStorage";
+import { ApiError } from "@/lib/api/swmApi";
+import { saveServiceCloud } from "@/lib/service/serviceService";
+import { getPrimaryVehicle } from "@/lib/vehicle/vehicleService";
 import type { ServiceCategory } from "@/lib/types/service";
 import styles from "./ServiceForm.module.css";
 
@@ -24,7 +26,7 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const [date, setDate] = useState(today);
-  const [mileage, setMileage] = useState("89500");
+  const [mileage, setMileage] = useState("");
   const [total, setTotal] = useState("");
   const [category, setCategory] =
     useState<ServiceCategory>("Mantenimiento");
@@ -32,40 +34,101 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
   const [nextServiceKm, setNextServiceKm] = useState("");
   const [nextServiceDate, setNextServiceDate] = useState("");
   const [error, setError] = useState("");
+  const [loadingVehicle, setLoadingVehicle] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    let active = true;
+
+    async function loadMileage() {
+      try {
+        const vehicle = await getPrimaryVehicle();
+
+        if (!active) return;
+
+        if (!vehicle) {
+          setError("Primero debes registrar tu vehículo.");
+          return;
+        }
+
+        setMileage(String(vehicle.current_mileage));
+      } catch (reason) {
+        if (!active) return;
+
+        setError(
+          reason instanceof ApiError
+            ? reason.detail
+            : "No se pudo cargar el kilometraje.",
+        );
+      } finally {
+        if (active) setLoadingVehicle(false);
+      }
+    }
+
+    void loadMileage();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    const mileageValue = Number(mileage);
+    const mileageValue = Number(mileage.replace(/[.,\s]/g, ""));
     const totalValue = Number(total);
-    const nextKmValue = nextServiceKm ? Number(nextServiceKm) : null;
+    const nextKmValue = nextServiceKm
+      ? Number(nextServiceKm.replace(/[.,\s]/g, ""))
+      : null;
 
-    if (!date || mileageValue <= 0 || totalValue <= 0 || !notes.trim()) {
+    if (
+      !date ||
+      !Number.isInteger(mileageValue) ||
+      mileageValue <= 0 ||
+      !Number.isFinite(totalValue) ||
+      totalValue <= 0 ||
+      !notes.trim()
+    ) {
       setError(
         "Completa la fecha, kilometraje, valor y servicio realizado.",
       );
       return;
     }
 
-    if (nextKmValue !== null && nextKmValue <= mileageValue) {
+    if (
+      nextKmValue !== null &&
+      (!Number.isInteger(nextKmValue) || nextKmValue <= mileageValue)
+    ) {
       setError("El próximo kilometraje debe ser mayor al kilometraje actual.");
       return;
     }
 
-    saveServiceRecord({
-      id: crypto.randomUUID(),
-      date,
-      mileage: mileageValue,
-      category,
-      notes: notes.trim(),
-      total: Number(totalValue.toFixed(2)),
-      nextServiceKm: nextKmValue,
-      nextServiceDate: nextServiceDate || null,
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      setSaving(true);
 
-    onSaved();
+      await saveServiceCloud({
+        date,
+        mileage: mileageValue,
+        category,
+        notes: notes.trim(),
+        total: Number(totalValue.toFixed(2)),
+        nextServiceKm: nextKmValue,
+        nextServiceDate: nextServiceDate || null,
+      });
+
+      onSaved();
+    } catch (reason) {
+      setError(
+        reason instanceof ApiError
+          ? reason.detail
+          : reason instanceof Error
+            ? reason.message
+            : "No se pudo guardar el servicio.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -82,7 +145,12 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
           </div>
         </div>
 
-        <button type="button" onClick={onClose} aria-label="Cerrar formulario">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar formulario"
+          disabled={saving}
+        >
           <X size={21} />
         </button>
       </div>
@@ -95,6 +163,7 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
               type="date"
               value={date}
               onChange={(event) => setDate(event.target.value)}
+              disabled={saving}
             />
           </label>
 
@@ -106,6 +175,7 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
               value={mileage}
               onChange={(event) => setMileage(event.target.value)}
               placeholder="89500"
+              disabled={saving || loadingVehicle}
             />
           </label>
 
@@ -118,6 +188,7 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
               value={total}
               onChange={(event) => setTotal(event.target.value)}
               placeholder="75.00"
+              disabled={saving}
             />
           </label>
         </div>
@@ -129,6 +200,7 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
             onChange={(event) =>
               setCategory(event.target.value as ServiceCategory)
             }
+            disabled={saving}
           >
             {categories.map((item) => (
               <option value={item} key={item}>
@@ -145,6 +217,7 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="Ej. Cambio de aceite 5W30 full sintético y filtro"
+            disabled={saving}
           />
         </label>
 
@@ -163,6 +236,7 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
                 value={nextServiceKm}
                 onChange={(event) => setNextServiceKm(event.target.value)}
                 placeholder="Ej. 100000"
+                disabled={saving}
               />
             </label>
 
@@ -172,6 +246,7 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
                 type="date"
                 value={nextServiceDate}
                 onChange={(event) => setNextServiceDate(event.target.value)}
+                disabled={saving}
               />
             </label>
           </div>
@@ -180,12 +255,17 @@ export function ServiceForm({ onClose, onSaved }: ServiceFormProps) {
         {error && <p className={styles.error}>{error}</p>}
 
         <div className={styles.actions}>
-          <button type="button" className={styles.cancel} onClick={onClose}>
+          <button
+            type="button"
+            className={styles.cancel}
+            onClick={onClose}
+            disabled={saving}
+          >
             Cancelar
           </button>
 
-          <button type="submit" className={styles.save}>
-            Guardar
+          <button type="submit" className={styles.save} disabled={saving}>
+            {saving ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </form>
