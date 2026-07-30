@@ -4,7 +4,12 @@ import { usePathname,useRouter } from "next/navigation";
 import { AUTH_UPDATED_EVENT,clearSession,getAccessToken } from "@/lib/auth/authStorage";
 import { ApiError,getMe } from "@/lib/api/swmApi";
 
-const PUBLIC_ROUTES=new Set(["/login","/register"]);
+const PUBLIC_ROUTES = new Set([
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+]);
 export function AppAuthGate({children}:{children:ReactNode}){
  const pathname=usePathname(); const router=useRouter(); const [checking,setChecking]=useState(true);
  useEffect(()=>{ let cancelled=false;
