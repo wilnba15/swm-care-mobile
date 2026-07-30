@@ -16,6 +16,19 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
+  new_password: string;
+}
+
+export interface PasswordRecoveryResponse {
+  message: string;
+}
+
 export interface RegisterPayload {
   full_name: string;
   email: string;
@@ -188,6 +201,24 @@ export async function register(payload: RegisterPayload): Promise<SwmSession> {
   const session = normalizeSession(response);
   saveSession(session);
   return session;
+}
+
+export async function forgotPassword(
+  payload: ForgotPasswordPayload,
+): Promise<PasswordRecoveryResponse> {
+  return request<PasswordRecoveryResponse>("/swm-auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetPassword(
+  payload: ResetPasswordPayload,
+): Promise<PasswordRecoveryResponse> {
+  return request<PasswordRecoveryResponse>("/swm-auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getMe(): Promise<SwmUser> {
