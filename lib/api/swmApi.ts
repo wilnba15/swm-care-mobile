@@ -365,3 +365,28 @@ export async function getVehicleServiceOrders(
     true,
   );
 }
+
+// =========================
+// ANALIZAR CON IA - SWM CARE
+// =========================
+
+export interface SwmAiAnalyzePayload {
+  problem: string;
+}
+
+export interface SwmAiAnalyzeResponse {
+  analysis: string;
+}
+
+export async function analyzeVehicleProblem(
+  payload: SwmAiAnalyzePayload,
+): Promise<SwmAiAnalyzeResponse> {
+  return request<SwmAiAnalyzeResponse>(
+    "/swm-ai/analyze",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    true,
+  );
+}

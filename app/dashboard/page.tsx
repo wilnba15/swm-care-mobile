@@ -3,6 +3,7 @@ import { BottomNavigation } from "@/components/mobile/BottomNavigation";
 import { FloatingActionButton } from "@/components/mobile/FloatingActionButton";
 import { VehicleSummaryCard } from "@/components/dashboard/VehicleSummaryCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { AiAnalysisCard } from "@/components/dashboard/AiAnalysisCard";
 import styles from "./dashboard.module.css";
 
 export default function DashboardPage() {
@@ -12,6 +13,7 @@ export default function DashboardPage() {
 
       <section className={styles.content}>
         <VehicleSummaryCard />
+        <AiAnalysisCard />
         <RecentActivity />
       </section>
 
