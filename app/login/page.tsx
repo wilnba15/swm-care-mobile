@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { CarFront, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { ApiError, login } from "@/lib/api/swmApi";
+import { ApiError, getMe, login } from "@/lib/api/swmApi";
+import { clearSession, hasSession } from "@/lib/auth/authStorage";
 import styles from "./login.module.css";
 
 export default function LoginPage() {
@@ -14,6 +15,35 @@ export default function LoginPage() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkExistingSession() {
+      if (!hasSession()) {
+        if (active) setCheckingSession(false);
+        return;
+      }
+
+      try {
+        await getMe();
+        if (active) router.replace("/dashboard");
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          clearSession();
+        }
+
+        if (active) setCheckingSession(false);
+      }
+    }
+
+    void checkExistingSession();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,12 +57,31 @@ export default function LoginPage() {
     try {
       setLoading(true);
       await login({ email: email.trim().toLowerCase(), password });
+      await getMe();
       router.replace("/dashboard");
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.detail : "No se pudo iniciar sesión.");
+      if (reason instanceof ApiError && reason.status === 401) {
+        clearSession();
+      }
+
+      setError(
+        reason instanceof ApiError
+          ? reason.detail
+          : "No se pudo iniciar sesión.",
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <main className={styles.shell}>
+        <section className={styles.card}>
+          <p style={{ margin: 0, textAlign: "center" }}>Validando sesión…</p>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -52,7 +101,10 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="email"
                 value={email}
-                onChange={(event) => { setEmail(event.target.value); setError(""); }}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setError("");
+                }}
                 placeholder="nombre@correo.com"
               />
             </div>
@@ -66,17 +118,27 @@ export default function LoginPage() {
                 type={show ? "text" : "password"}
                 autoComplete="current-password"
                 value={password}
-                onChange={(event) => { setPassword(event.target.value); setError(""); }}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setError("");
+                }}
                 placeholder="Tu contraseña"
               />
-              <button type="button" onClick={() => setShow((value) => !value)} aria-label="Mostrar u ocultar contraseña">
+              <button
+                type="button"
+                onClick={() => setShow((value) => !value)}
+                aria-label="Mostrar u ocultar contraseña"
+              >
                 {show ? <EyeOff size={19} /> : <Eye size={19} />}
               </button>
             </div>
           </label>
 
           <p style={{ margin: "-4px 0 2px", textAlign: "right" }}>
-            <Link href="/reset-password" style={{ color: "#1263e5", fontWeight: 700, textDecoration: "none" }}>
+            <Link
+              href="/reset-password"
+              style={{ color: "#1263e5", fontWeight: 700, textDecoration: "none" }}
+            >
               ¿Resetear contraseña?
             </Link>
           </p>
@@ -88,7 +150,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className={styles.link}>¿No tienes cuenta? <Link href="/register">Crear cuenta</Link></p>
+        <p className={styles.link}>
+          ¿No tienes cuenta? <Link href="/register">Crear cuenta</Link>
+        </p>
       </section>
     </main>
   );
