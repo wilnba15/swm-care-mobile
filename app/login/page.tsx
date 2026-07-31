@@ -18,10 +18,12 @@ export default function LoginPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
     if (!email.trim() || !password) {
       setError("Ingresa tu correo y contraseña.");
       return;
     }
+
     try {
       setLoading(true);
       await login({ email: email.trim().toLowerCase(), password });
@@ -46,26 +48,44 @@ export default function LoginPage() {
             <span>Correo electrónico</span>
             <div>
               <Mail size={19} />
-              <input type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }} placeholder="nombre@correo.com" />
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => { setEmail(event.target.value); setError(""); }}
+                placeholder="nombre@correo.com"
+              />
             </div>
           </label>
+
           <label>
             <span>Contraseña</span>
             <div>
               <LockKeyhole size={19} />
-              <input type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="Tu contraseña" />
-              <button type="button" onClick={() => setShow((value) => !value)}>{show ? <EyeOff size={19} /> : <Eye size={19} />}</button>
+              <input
+                type={show ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => { setPassword(event.target.value); setError(""); }}
+                placeholder="Tu contraseña"
+              />
+              <button type="button" onClick={() => setShow((value) => !value)} aria-label="Mostrar u ocultar contraseña">
+                {show ? <EyeOff size={19} /> : <Eye size={19} />}
+              </button>
             </div>
           </label>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -6 }}>
+          <p style={{ margin: "-4px 0 2px", textAlign: "right" }}>
             <Link href="/reset-password" style={{ color: "#1263e5", fontWeight: 700, textDecoration: "none" }}>
               ¿Resetear contraseña?
             </Link>
-          </div>
+          </p>
 
           {error && <p className={styles.error}>{error}</p>}
-          <button className={styles.submit} type="submit" disabled={loading}>{loading ? "Ingresando..." : "Ingresar"}</button>
+
+          <button className={styles.submit} type="submit" disabled={loading}>
+            {loading ? "Ingresando..." : "Ingresar"}
+          </button>
         </form>
 
         <p className={styles.link}>¿No tienes cuenta? <Link href="/register">Crear cuenta</Link></p>
