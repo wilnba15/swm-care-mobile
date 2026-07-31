@@ -2,23 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MobileHeader } from "@/components/mobile/MobileHeader";
-import { BottomNavigation } from "@/components/mobile/BottomNavigation";
-import { FloatingActionButton } from "@/components/mobile/FloatingActionButton";
-import { VehicleSummaryCard } from "@/components/dashboard/VehicleSummaryCard";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { AiAnalysisCard } from "@/components/dashboard/AiAnalysisCard";
 import { ApiError, getMe } from "@/lib/api/swmApi";
 import { clearSession, hasSession } from "@/lib/auth/authStorage";
-import styles from "./dashboard.module.css";
 
-export default function DashboardPage() {
+export default function HomePage() {
   const router = useRouter();
-  const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(true);
 
   const validateSession = useCallback(async () => {
-    setAuthorized(false);
+    setChecking(true);
     setError("");
 
     if (!hasSession()) {
@@ -28,7 +21,7 @@ export default function DashboardPage() {
 
     try {
       await getMe();
-      setAuthorized(true);
+      router.replace("/dashboard");
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
         clearSession();
@@ -36,6 +29,7 @@ export default function DashboardPage() {
         return;
       }
 
+      setChecking(false);
       setError(
         reason instanceof ApiError
           ? reason.detail
@@ -48,50 +42,39 @@ export default function DashboardPage() {
     void validateSession();
   }, [validateSession]);
 
-  if (!authorized) {
-    return (
-      <main
-        className={styles.shell}
-        style={{ display: "grid", placeItems: "center", padding: 24 }}
-      >
-        <section style={{ textAlign: "center" }}>
-          <p>{error || "Validando sesión…"}</p>
-
-          {error && (
-            <button
-              type="button"
-              onClick={() => void validateSession()}
-              style={{
-                marginTop: 14,
-                border: 0,
-                borderRadius: 12,
-                padding: "11px 18px",
-                background: "#1263e5",
-                color: "#ffffff",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Reintentar
-            </button>
-          )}
-        </section>
-      </main>
-    );
-  }
-
   return (
-    <main className={styles.shell}>
-      <MobileHeader />
+    <main
+      style={{
+        minHeight: "100dvh",
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
+        background: "#eef3f8",
+        textAlign: "center",
+      }}
+    >
+      <section>
+        <p>{checking ? "Validando sesión…" : error}</p>
 
-      <section className={styles.content}>
-        <VehicleSummaryCard />
-        <AiAnalysisCard />
-        <RecentActivity />
+        {!checking && error && (
+          <button
+            type="button"
+            onClick={() => void validateSession()}
+            style={{
+              marginTop: 14,
+              border: 0,
+              borderRadius: 12,
+              padding: "11px 18px",
+              background: "#1263e5",
+              color: "#ffffff",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        )}
       </section>
-
-      <FloatingActionButton />
-      <BottomNavigation />
     </main>
   );
 }
